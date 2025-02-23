@@ -3,7 +3,7 @@
 
 # Pipeline
 
-![framework](figure1.jpg)
+![framework](Figure.png)
 
 # Installation
 ```
