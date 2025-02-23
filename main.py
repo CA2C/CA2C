@@ -1,5 +1,3 @@
-# 结合加权：
-# 更改标签矫正方式
 import os
 import sys
 import argparse
@@ -209,7 +207,7 @@ def robust_train(net, optimizer, trainloader, n_classes, config, train_loss_mete
             _, y_ce = candidate_count[indices].topk(config.topk, 1, True, True)
             _, y_pll = torch.max(candidate_count[indices], dim=-1)
             if config.label_smoothing == 0:
-                L_PLL = (F.cross_entropy(logits0, y_pll, reduction='none') * confidence).mean() * config.weight1 + (F.cross_entropy(logits0, y_, reduction='none') * confidence).mean() * ( 1 - config.weight1)
+                L_PLL = (F.cross_entropy(logits0, y_pll, reduction='none') * confidence).mean() * config.lambda_ + (F.cross_entropy(logits0, y_, reduction='none') * confidence).mean() * ( 1 - config.lambda_)
 
             else:
                 L_PLL = (F.cross_entropy(logits0, y_pll, reduction='none', label_smoothing=config.label_smoothing) * confidence).mean() * config.weight1 + (F.cross_entropy(logits0, y_, reduction='none', label_smoothing=config.label_smoothing) * confidence).mean() * ( 1 - config.weight1)
@@ -225,7 +223,7 @@ def robust_train(net, optimizer, trainloader, n_classes, config, train_loss_mete
             else:
                 loss_CR_0 = F.cross_entropy(logits_CR_0, prediction0, label_smoothing=config.label_smoothing)
 
-            weight = config.weight2
+            weight = 0.8
             loss0 = L_PLL*weight + loss_CR_0*(1-weight)
 
             outputs_CR_1 = net[1](x_s)
@@ -235,7 +233,6 @@ def robust_train(net, optimizer, trainloader, n_classes, config, train_loss_mete
             else:
                 loss_CR_1 = F.cross_entropy(logits_CR_1, prediction1, label_smoothing=config.label_smoothing)
 
-            weight = config.weight3
             loss1 = L_NL * weight + loss_CR_1 * (1 - weight)
 
         optimizer[0].zero_grad()
@@ -400,18 +397,17 @@ def init_corrected_labels(num_samples, num_classes, trainloader, soft=True):
 # parse arguments
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log', type=str, default=None)
+    parser.add_argument('--log', type=str, default="CA2C")
     parser.add_argument('--gpu', type=str, default="0")
     parser.add_argument('--seed', type=int, default=123)
     parser.add_argument('--batch-size', type=int, default=128)
-    parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--lr-decay', type=str, default='cosine:20,5e-4,100')
+    parser.add_argument('--lr', type=float, default=0.02)
+    parser.add_argument('--lr-decay', type=str, default='cosine:500,0,700')
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     parser.add_argument('--opt', type=str, default='sgd')
-    parser.add_argument('--warmup-epochs', type=int, default=20)
-    parser.add_argument('--warmup-lr', type=float, default=0.001)
-    parser.add_argument('--lr1', type=float, default=0.001)
-    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--warmup-epochs', type=int, default=400)
+    parser.add_argument('--warmup-lr', type=float, default=0.02)
+    parser.add_argument('--epochs', type=int, default=700)
     parser.add_argument('--save-weights', type=bool, default=False)
 
     parser.add_argument('--dataset', type=str, default='cifar100nc')
@@ -423,12 +419,10 @@ def parse_args():
     parser.add_argument('--ablation', type=bool, default=False)
     parser.add_argument('--method', type=str, default="ours")
     parser.add_argument('--tau', type=float, default=0.025)
-    parser.add_argument('--topk', type=int, default=1)
+    parser.add_argument('--topk', type=int, default=2)
 
-    parser.add_argument('--weight1', type=float, default=1)
-    parser.add_argument('--weight2', type=float, default=1)
-    parser.add_argument('--weight3', type=float, default=1)
-    parser.add_argument('--label-smoothing', type=float, default=0.2)
+    parser.add_argument('--lambda_', type=float, default=0.99)
+    parser.add_argument('--label-smoothing', type=float, default=0)
 
 
     args = parser.parse_args()
